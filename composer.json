@@ -1,5 +1,5 @@
 {
-    "name": "dynamikaweb/yii2-apexchart",
+    "name": "dynamikaweb/yii2-apexcharts",
     "description": "",
     "type": "yii2-extension",
     "keywords": [
@@ -31,7 +31,7 @@
     },
     "autoload": {
         "psr-4": {
-            "dynamikaweb\\apexchart\\": "src"
+            "dynamikaweb\\apexcharts\\": "src"
         }
     },
     "repositories": [
