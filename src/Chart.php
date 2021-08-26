@@ -2,61 +2,88 @@
 
 namespace dynamikaweb\apexcharts;
 
-use yii\helpers\ArrayHelper;
-use yii\helpers\Html;
-use yii\helpers\Json;
 
-class Chart extends \yii\base\Widget
+class Chart extends ChartHtml
 {
-    public $options = [];
-    public $pluginOptions = [];
-    
-    public $dataProvider;
-    public $columns;
-    public $category;
+    private $_models;
 
-    public $series = [];
-    public $categories = [];
-    public $type = 'line';
-    public $width = '100%';
-    public $height = '';
-    
-    public function run()
+    /**
+     * checks if there is dataprovider and starts assembling the categories and series
+     *
+     * @return void
+     */
+    public function init()
     {
-        ChartAsset::register($this->view);
-
-        $tag = ArrayHelper::remove($this->options,'tag', 'div');
-        $options = ArrayHelper::merge($this->options, ['id' => $this->id]);
-        echo Html::tag($tag, null, $options);
-
-        $this->registerClientScript();
+        if($this->dataProvider && $this->dataProvider->getCount() > 0){
+            $this->setModelsObject();
+            $this->setCategories();
+            $this->getData();
+        }
     }
 
     /**
-     * Registers required scripts
+     * transforms dataProvider into series based on columns
+     * output example: 'series' => [
+     *      [
+     *          'name' => 'column',
+     *          'data' => [21, 23, 20, 40]
+     *      ]
+     * ]
+     *
+     * @return void
      */
-    public function registerClientScript()
+    public function getData()
     {
-        $this->pluginOptions = ArrayHelper::merge([
-                'chart' => [
-                    'type' => $this->type,
-                    'width' => $this->width,
-                    'height' => $this->height
-                ],
-                'series' => $this->series,
-                'xaxis' => [
-                    'categories' => $this->categories
-                ]
-            ],
-            $this->pluginOptions
-        );
-        
-        $jsOptions = json_encode($this->pluginOptions);
+        $data = array();
 
-        $script = "
-          var chart = new ApexCharts(document.querySelector('#{$this->id}'), {$jsOptions});
-          chart.render();";
+        foreach($this->columns as $key => $column){
 
-        $this->view->registerJs($script);
+            if (is_array($column)){
+                $this->series[$key]['name'] = isset($column['label'])?$column['label']
+                    :(method_exists($this->_models[0], 'getAttributeLabel')?$this->_model[0]->getAttributeLabel($column['attribute']):$column['attribute']);
+            } else {
+                $this->series[$key]['name'] = method_exists($this->_models[0], 'getAttributeLabel')?$this->_model[0]->getAttributeLabel($column):$column; 
+            }
+
+            foreach($this->_models as $model){
+                if(!is_array($column)){
+                    $serie = $model->$column;
+                } else if(isset($column['value'])){
+                    $serie = is_callable($column['value']) ? call_user_func($column['value'], $model) : $column['value'];
+                } else {
+                    $serie = $model->{$column['attribute']};
+                }
+
+                $this->series[$key]['data'][] = $serie;
+            }
+        }
+
+    }
+
+    /**
+     * set of arrays as objects
+     *
+     * @return void
+     */
+    public function setModelsObject()
+    {
+        foreach($this->dataProvider->getModels() as $model){
+            //If array transforms to object
+            $this->_models[] = is_array($model) ? (object)$model : $model;
+        }        
+    }
+
+    /**
+     * set the series categories
+     *
+     * @return void
+     */
+    public function setCategories()
+    {
+        if(!$this->categories){
+            foreach($this->_models as $key => $model){
+                $this->categories[$key] = $this->category?$model->{$this->category}:$key; 
+            }
+        }
     }
 }
