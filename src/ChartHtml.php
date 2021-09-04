@@ -54,7 +54,7 @@ class ChartHtml extends \yii\base\Widget
             $this->pluginOptions
         );
         
-        $jsOptions = json_encode($this->pluginOptions);
+        $jsOptions = Json::htmlEncode($this->pluginOptions);
 
         $script = "
           var chart = new ApexCharts(document.querySelector('#{$this->id}'), {$jsOptions});
