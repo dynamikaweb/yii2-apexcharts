@@ -8,12 +8,20 @@ use yii\helpers\Json;
 
 class ChartHtml extends \yii\base\Widget
 {
+    const DIRECTION_ROW = 'row';
+    const DIRECTION_COLUMN = 'column';
+
     public $options = [];
     public $pluginOptions = [];
     
     public $dataProvider;
     public $columns;
     public $category;
+
+    /**
+     * direction of dataprovider data processing
+     */
+    public $direction = self::DIRECTION_COLUMN;
 
     public $series = [];
     public $categories = [];

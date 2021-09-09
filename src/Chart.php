@@ -15,9 +15,14 @@ class Chart extends ChartHtml
     public function init()
     {
         if($this->dataProvider && $this->dataProvider->getCount() > 0){
-            $this->setModelsObject();
+            $this->normalizeObject();
             $this->setCategories();
-            $this->getData();
+            
+            if($this->direction == self::DIRECTION_COLUMN){
+                $this->normalizeData();    
+            } else {
+                $this->normalizeDataRow();    
+            }
         }
     }
 
@@ -32,19 +37,23 @@ class Chart extends ChartHtml
      *
      * @return void
      */
-    public function getData()
+    public function normalizeData()
     {
-        $data = array();
 
-        foreach($this->columns as $key => $column){
-
-            if (is_array($column)){
-                $this->series[$key]['name'] = isset($column['label'])?$column['label']
-                    :(method_exists($this->_models[0], 'getAttributeLabel')?$this->_model[0]->getAttributeLabel($column['attribute']):$column['attribute']);
-            } else {
-                $this->series[$key]['name'] = method_exists($this->_models[0], 'getAttributeLabel')?$this->_model[0]->getAttributeLabel($column):$column; 
+        foreach($this->columns as $column){
+            
+            if($column == $this->category){
+                continue;
             }
 
+            if (is_array($column)){
+                $name = isset($column['label'])?$column['label']
+                    :(method_exists($this->_models[0], 'getAttributeLabel')?$this->_model[0]->getAttributeLabel($column['attribute']):$column['attribute']);
+            } else {
+                $name = method_exists($this->_models[0], 'getAttributeLabel')?$this->_model[0]->getAttributeLabel($column):$column; 
+            }
+
+            $data = [];
             foreach($this->_models as $model){
                 if(!is_array($column)){
                     $serie = $model->$column;
@@ -54,8 +63,37 @@ class Chart extends ChartHtml
                     $serie = $model->{$column['attribute']};
                 }
 
-                $this->series[$key]['data'][] = $serie;
-            }
+                $data[] = $serie;
+            } 
+
+            $this->series[] = ['name' => $name, 'data' => $data];
+        }
+
+    }
+
+    public function normalizeDataRow()
+    {
+
+        foreach($this->_models as $key => $model){
+            $name = $model->{$this->category};
+            $data = [];
+            
+            foreach($this->columns as $column){
+                if($column == $this->category){
+                    continue;
+                }
+                if(!is_array($column)){
+                    $serie = $model->$column;
+                } else if(isset($column['value'])){
+                    $serie = is_callable($column['value']) ? call_user_func($column['value'], $model) : $column['value'];
+                } else {
+                    $serie = $model->{$column['attribute']};
+                }
+
+                $data[] = $serie;
+            } 
+
+            $this->series[] = ['name' => $name, 'data' => $data];
         }
 
     }
@@ -65,7 +103,7 @@ class Chart extends ChartHtml
      *
      * @return void
      */
-    public function setModelsObject()
+    public function normalizeObject()
     {
         foreach($this->dataProvider->getModels() as $model){
             //If array transforms to object
@@ -80,9 +118,26 @@ class Chart extends ChartHtml
      */
     public function setCategories()
     {
+        $this->columns = $this->columns?$this->columns:array_keys((array) $this->_models[0]);
+
+        if(!$this->category){
+            $this->category = $this->columns[0];
+        } 
+        unset($this->columns[$this->category]);
+
         if(!$this->categories){
-            foreach($this->_models as $key => $model){
-                $this->categories[$key] = $this->category?$model->{$this->category}:$key; 
+            
+            if($this->direction == self::DIRECTION_COLUMN){
+                foreach($this->_models as $key => $model){
+                    $this->categories[$key] = $model->{$this->category}; 
+                }
+            } else {
+                foreach($this->_models[0] as $key => $attribute){
+                    if($key == $this->category){
+                        continue;
+                    }
+                    $this->categories[] = $key;
+                }
             }
         }
     }
